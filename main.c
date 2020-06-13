@@ -119,6 +119,11 @@ uint8_t checkStkMapNotUsed(uint8_t array[], uint8_t size)
 	return 1;
 }
 
+// Buttons to activate the remap menu, defaults to START + SQUARE
+static uint8_t menuActivator_mask[2] = {
+	4, 3
+};
+
 // Config Menu Renderer
 void drawConfigMenu() {
 	drawString(5, 10, "Thanks to Tain Sueiras, nobodywasishere and RaveHeart");
@@ -179,13 +184,14 @@ void drawConfigMenu() {
 	setTextColor(0x00FF00FF);
 }
 
-void applyRemapRule(uint8_t btn_idx, uint32_t *map, uint8_t* stkpos) {
+void applyRemapRule(uint8_t btn_idx, uint32_t* map, uint8_t* stkpos) {
 	if (btn_mask[btn_idx] < PHYS_BUTTONS_NUM) { // Remap to physical
 		if (!(*map & btns[btn_mask[btn_idx]])) {
 			*map += btns[btn_mask[btn_idx]];
 		}
 
-	} else if (btn_mask[btn_idx] == PHYS_BUTTONS_NUM) { // Original remap
+	}
+	else if (btn_mask[btn_idx] == PHYS_BUTTONS_NUM) { // Original remap
 		if (btn_idx < PHYS_BUTTONS_NUM) {
 			if (!(*map & btns[btn_idx])) {
 				*map += btns[btn_idx];
@@ -202,7 +208,7 @@ void applyRemapRule(uint8_t btn_idx, uint32_t *map, uint8_t* stkpos) {
 void applyRemap(SceCtrlData *ctrl, int count) {
 	
 	// Checking for menu triggering
-	if ((ctrl->buttons & SCE_CTRL_START) && (ctrl->buttons & SCE_CTRL_SQUARE)) {
+	if ((ctrl->buttons & btns[menuActivator_mask[0]]) && (ctrl->buttons & btns[menuActivator_mask[1]])) {
 		show_menu = 1;
 		cfg_i = 0;
 		return;
@@ -219,7 +225,6 @@ void applyRemap(SceCtrlData *ctrl, int count) {
 	int i;
 	uint32_t new_map = 0;
 	uint8_t stickpos[8] = { };
-
 	for (i=0;i<PHYS_BUTTONS_NUM;i++) {
 		if (ctrl->buttons & btns[i]) applyRemapRule(i, &new_map, stickpos);
 	}
@@ -351,6 +356,16 @@ void loadConfig(void) {
 		sceIoRead(fd, btn_mask, BUTTONS_NUM);
 		sceIoClose(fd);
 	}
+	
+	// Loading menu activator config file
+	fd = sceIoOpen("ux0:/data/remaPSV/menuactivator.bin", SCE_O_RDONLY, 0777);
+		if(fd >= 0){
+			uint8_t temp;
+			sceIoRead(fd, &temp, 1);
+			menuActivator_mask[0] = (temp >> 4) & 0x0F;
+			menuActivator_mask[1] = temp & 0x0F;
+			sceIoClose(fd);
+		}
 	
 	// Loading analog config file
 	fd = sceIoOpen("ux0:/data/remaPSV/analogs.bin", SCE_O_RDONLY, 0777);
@@ -698,6 +713,16 @@ int module_start(SceSize argc, const void *args) {
 	// Setup stuffs
 	loadConfig();
 	model = sceKernelGetModel();
+	
+	// For some reason, Adrenaline refuses to start 
+	// if this plugin is active; so stop the
+	// initialization of the module.
+	
+	//Bypass for Adrenaline (NPXS10028)
+	if(!(strcmp(titleid, "NPXS10028")))
+	{
+	   return SCE_KERNEL_START_SUCCESS;
+	}
 	
 	// Initializing used funcs table
 	int i;
