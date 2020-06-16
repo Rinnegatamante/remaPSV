@@ -41,7 +41,7 @@ static uint8_t internal_touch_call = 0;
 static uint8_t internal_ext_call = 0;
 static uint8_t new_frame = 1;
 static SceCtrlData pstv_fakepad;
-static uint8_t const analogs_deadzone_def = 50;
+static uint8_t const analogs_deadzone_def = 30;
 static uint8_t analogs_deadzone[4];
 static uint8_t btn_mask[BUTTONS_NUM];
 static uint8_t used_funcs[HOOKS_NUM-1];
@@ -198,7 +198,7 @@ void drawConfigMenu() {
 	}
 }
 
-void applyRemapRule(uint8_t btn_idx, uint32_t* map, uint8_t* stkpos) {
+void applyRemapRule(uint8_t btn_idx, uint32_t* map, uint32_t* stickpos) {
 	if (btn_mask[btn_idx] < PHYS_BUTTONS_NUM) { // Remap to physical
 		if (!(*map & btns[btn_mask[btn_idx]])) {
 			*map += btns[btn_mask[btn_idx]];
@@ -214,18 +214,18 @@ void applyRemapRule(uint8_t btn_idx, uint32_t* map, uint8_t* stkpos) {
 	}
 	else if (btn_mask[btn_idx] > PHYS_BUTTONS_NUM + 1) { // Remap to non physical
 		if (btn_mask[btn_idx] < PHYS_BUTTONS_NUM + 10) { // Remap analog stick direction digitally
-			stkpos[btn_mask[btn_idx] - (PHYS_BUTTONS_NUM + 2)] = 127;
+			stickpos[btn_mask[btn_idx] - (PHYS_BUTTONS_NUM + 2)] += 127;
 		}
 	}
 }
 
-void applyRemapRuleForAnalog(uint8_t btn_idx, uint32_t* map, uint8_t* stkpos, uint8_t stickposval) {
+void applyRemapRuleForAnalog(uint8_t btn_idx, uint32_t* map, uint32_t* stickpos, uint8_t stickposval) {
 	if (btn_mask[btn_idx] > PHYS_BUTTONS_NUM + 1) { // Remap to non physical
 		if (btn_mask[btn_idx] < PHYS_BUTTONS_NUM + 10) { // Remap analog stick direction digitally
-			stkpos[btn_mask[btn_idx] - (PHYS_BUTTONS_NUM + 2)] = 127 - stickposval;
+			stickpos[btn_mask[btn_idx] - (PHYS_BUTTONS_NUM + 2)] += 127 - stickposval;
 		}
 	} else {
-		applyRemapRule(btn_idx, map, stkpos);
+		applyRemapRule(btn_idx, map, stickpos);
 	}
 }
 
@@ -248,7 +248,7 @@ void applyRemap(SceCtrlData *ctrl, int count) {
 	// Applying remap rules for physical buttons
 	int i;
 	uint32_t new_map = 0;
-	uint8_t stickpos[8] = { };
+	uint32_t stickpos[8] = { };
 	for (i=0;i<PHYS_BUTTONS_NUM;i++) {
 		if (ctrl->buttons & btns[i]) applyRemapRule(i, &new_map, stickpos);
 	}
@@ -320,17 +320,15 @@ void applyRemap(SceCtrlData *ctrl, int count) {
 	}
 	
 	// Remove minimal drift if digital remap for stick directions is used
-	/*for (i = 0; i < count; i++)
+	for (i = 0; i < count; i++)
 	{
-		if ((stickpos[0] || stickpos[1]) && ctrl[i].lx - 127 < 20) { 
-			ctrl[i].lx = 127; }
-		if ((stickpos[2] || stickpos[3]) && ctrl[i].ly - 127 < 20) { 
-			ctrl[i].ly = 127; }
-		if ((stickpos[4] || stickpos[5]) && ctrl[i].rx - 127 < 20) { 
-			ctrl[i].rx = 127; }
-		if ((stickpos[6] || stickpos[7]) && ctrl[i].ry - 127 < 20) { 
-			ctrl[i].ry = 127; }
-	}*/
+		if (((stickpos[0] || stickpos[1]) && ctrl[i].lx - 127 < analogs_deadzone[0]) || 
+			((stickpos[2] || stickpos[3]) && ctrl[i].ly - 127 < analogs_deadzone[1])) { 
+			ctrl[i].lx = ctrl[i].ly = 127; }
+		if (((stickpos[4] || stickpos[5]) && ctrl[i].rx - 127 < analogs_deadzone[2]) || 
+			((stickpos[6] || stickpos[7]) && ctrl[i].ry - 127 < analogs_deadzone[3])) { 
+			ctrl[i].rx = ctrl[i].ry = 127; }
+	}
 
 	// Apply digital remap for stick directions if used
 	for (i = 0; i < count; i++) {
@@ -752,8 +750,8 @@ int module_start(SceSize argc, const void *args) {
 	// if this plugin is active; so stop the
 	// initialization of the module.
 	
-	//Bypass for Adrenaline (NPXS10028)
-	if(!(strcmp(titleid, "NPXS10028")))
+	//Bypass for Adrenaline (NPXS10028) and ABM Bubbles (PSPEMUXXX)
+	if(!strcmp(titleid, "NPXS10028") && !strstr(titleid, "PSPEMU"))
 	{
 	   return SCE_KERNEL_START_SUCCESS;
 	}
