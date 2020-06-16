@@ -1,5 +1,6 @@
 #include <vitasdk.h>
 #include <taihen.h>
+#include <psp2/motion.h> 
 #include <libk/string.h>
 #include <libk/stdio.h>
 #include "renderer.h"
@@ -7,13 +8,14 @@
 #define HOOKS_NUM         17 // Hooked functions num
 #define PHYS_BUTTONS_NUM  16 // Supported physical buttons num
 #define TARGET_REMAPS     26 // Supported target remaps num
-#define BUTTONS_NUM       32 // Supported buttons num
-#define MENU_MODES        4  // Menu modes num
+#define BUTTONS_NUM       36 // Supported buttons num
+#define MENU_MODES        5  // Menu modes num
 #define COLOR_DEFAULT     0x00FFFFFF
 #define COLOR_HEADER      0x00FF00FF
 #define COLOR_CURSOR      0x0000FF00
 #define COLOR_ACTIVE      0x000000FF
 #define ANALOGS_DEADZONE_DEF      30
+#define GYRO_SENS_DEF             127
 
 #ifndef max
 # define max(a,b) (((a)>(b))?(a):(b))
@@ -23,6 +25,7 @@ enum{
 	MAIN_MENU = 0,
 	REMAP_MENU,
 	ANALOG_MENU,
+	GYRO_MENU,
 	FUNCS_LIST
 };
 
@@ -42,16 +45,18 @@ static uint8_t internal_ext_call = 0;
 static uint8_t new_frame = 1;
 static SceCtrlData pstv_fakepad;
 static uint8_t analogs_deadzone[4];
+static uint8_t gyro_sens[2];
 static uint8_t btn_mask[BUTTONS_NUM];
 static uint8_t used_funcs[HOOKS_NUM-1];
 
 static char* str_menus[MENU_MODES] = {
-	"MAIN MENU", "REMAP MENU", "ANALOG MENU", "USED FUNCTIONS"
+	"MAIN MENU", "REMAP MENU", "ANALOG MENU", "GYRO_MENU", "USED FUNCTIONS"
 };
 
 static char* str_main_menu[] = {
 	"Change remap settings",
 	"Change analog remap settings",
+	"Change gyro remap settings",
 	"Show imported functions",
 	"Return to the game"
 };
@@ -84,22 +89,26 @@ static uint32_t btns[BUTTONS_NUM] = {
 
 static char* str_btns[BUTTONS_NUM] = {
 	"Cross", "Circle", "Triangle", "Square",
-	"Start", "Select", "L Trigger (L2)", "R Trigger (R2)",
-	"Up", "Right", "Left", "Down", "L1", "R1", "L3", "R3",
+	"Start", "Select", 
+	"L Trigger (L2)", "R Trigger (R2)",
+	"Up", "Right", "Left", "Down", 
+	"L1", "R1", "L3", "R3",
 	"Touch (TL)", "Touch (TR)", "Touch (BL)", "Touch (BR)",
 	"Rear (TL)", "Rear (TR)", "Rear (BL)", "Rear (BR)",
-	"Left Analog (L)", "Left Analog (R)", "Left Analog (U)",
-	"Left Analog (D)", "Right Analog (L)", "Right Analog (R)",
-	"Right Analog (U)", "Right Analog (D)"
+	"Left Analog (L)", "Left Analog (R)", "Left Analog (U)", "Left Analog (D)", 
+	"Right Analog (L)", "Right Analog (R)", "Right Analog (U)", "Right Analog (D)",
+	"Gyro (L)", "Gyro (R)", "Gyro (U)", "Gyro (D)"
 };
 
 static char* target_btns[TARGET_REMAPS] = {
-	"Cross", "Circle", "Triangle", "Square", "Start",
-	"Select", "L Trigger (L2)", "R Trigger (R2)", "Up",
-	"Right", "Left", "Down", "L1", "R1", "L3", "R3", "Original", "Disable",
-	"Left Analog (L)", "Left Analog (R)", "Left Analog (U)",
-	"Left Analog (D)", "Right Analog (L)", "Right Analog (R)",
-	"Right Analog (U)", "Right Analog (D)"
+	"Cross", "Circle", "Triangle", "Square", 
+	"Start", "Select", 
+	"L Trigger (L2)", "R Trigger (R2)", 
+	"Up", "Right", "Left", "Down", 
+	"L1", "R1", "L3", "R3", 
+	"Original", "Disable",
+	"Left Analog (L)", "Left Analog (R)", "Left Analog (U)", "Left Analog (D)", 
+	"Right Analog (L)", "Right Analog (R)", "Right Analog (U)", "Right Analog (D)"
 };
 
 // Generic clamp function
@@ -107,18 +116,6 @@ int32_t clamp(int32_t value, int32_t mini, int32_t maxi) {
 	if (value < mini) { return mini; }
 	if (value > maxi) { return maxi; }
 	return value;
-}
-
-uint8_t checkStkMapNotUsed(uint8_t array[], uint8_t size)
-{
-	for (int i = 0; i < size; i++)
-	{
-		if (array[i] != 0) {
-			return 0;
-		}
-	}
-
-	return 1;
 }
 
 // Buttons to activate the remap menu, defaults to START + SQUARE
@@ -135,6 +132,12 @@ void resetRemaps(){
 void resetAnalogs(){
 	for (int i = 0; i < 4; i++) {
 		analogs_deadzone[i] = ANALOGS_DEADZONE_DEF;
+	}
+}
+
+void resetGyro(){
+	for (int i = 0; i < 2; i++) {
+		gyro_sens[i] = GYRO_SENS_DEF;
 	}
 }
 
@@ -183,9 +186,17 @@ void drawConfigMenu() {
 		setTextColor(COLOR_HEADER);
 		drawString(5, 520, "[<] or [>]: change    [[]]: reset   [start]: reset all    [select] or [O]: back");
 		break;
+	case GYRO_MENU:
+		setTextColor((0 == cfg_i) ? COLOR_CURSOR : ((gyro_sens[0] != GYRO_SENS_DEF) ? COLOR_ACTIVE : COLOR_DEFAULT));
+		drawStringF(5, 80, "X Axis Sensivity: %hhu", gyro_sens[0]);
+		setTextColor((1 == cfg_i) ? COLOR_CURSOR : ((gyro_sens[1] != GYRO_SENS_DEF) ? COLOR_ACTIVE : COLOR_DEFAULT));
+		drawStringF(5, 100, "Y Axis Sensivity: %hhu", gyro_sens[1]);
+		setTextColor(COLOR_HEADER);
+		drawString(5, 520, "[<] or [>]: change    [[]]: reset   [start]: reset all    [select] or [O]: back");
+		break;
 	case FUNCS_LIST:
 		for (i = max(0, cfg_i - (screen_entries - 3)); i < HOOKS_NUM - 1; i++) {
-			setTextColor((i == cfg_i) ? (used_funcs[i] ? COLOR_ACTIVE : COLOR_DEFAULT));
+			setTextColor((i == cfg_i) ? COLOR_CURSOR : (used_funcs[i] ? COLOR_ACTIVE : COLOR_DEFAULT));
 			drawStringF(5, y, "%s : %s", str_funcs[i], used_funcs[i] ? "Yes" : "No");
 			y += 20;
 			if (y + 40 > screen_h) break;
@@ -220,9 +231,19 @@ void applyRemapRule(uint8_t btn_idx, uint32_t* map, uint32_t* stickpos) {
 }
 
 void applyRemapRuleForAnalog(uint8_t btn_idx, uint32_t* map, uint32_t* stickpos, uint8_t stickposval) {
+	if (btn_mask[btn_idx] > PHYS_BUTTONS_NUM + 1) { 
+		if (btn_mask[btn_idx] < PHYS_BUTTONS_NUM + 10) { 
+			stickpos[btn_mask[btn_idx] - (PHYS_BUTTONS_NUM + 2)] += 127 - stickposval;
+		}
+	} else {
+		applyRemapRule(btn_idx, map, stickpos);
+	}
+}
+
+void applyRemapRuleForGyro(uint8_t btn_idx, uint32_t* map, uint32_t* stickpos, float gyroval){
 	if (btn_mask[btn_idx] > PHYS_BUTTONS_NUM + 1) { // Remap to non physical
 		if (btn_mask[btn_idx] < PHYS_BUTTONS_NUM + 10) { // Remap analog stick direction digitally
-			stickpos[btn_mask[btn_idx] - (PHYS_BUTTONS_NUM + 2)] += 127 - stickposval;
+			stickpos[btn_mask[btn_idx] - (PHYS_BUTTONS_NUM + 2)] += gyroval;
 		}
 	} else {
 		applyRemapRule(btn_idx, map, stickpos);
@@ -244,6 +265,10 @@ void applyRemap(SceCtrlData *ctrl, int count) {
 	sceTouchPeek(SCE_TOUCH_PORT_FRONT, &front, 1);
 	sceTouchPeek(SCE_TOUCH_PORT_BACK, &rear, 1);
 	internal_touch_call = 0;
+	
+	// Gathering gyro data	
+	SceMotionState motionstate;
+    sceMotionGetState(&motionstate);
 	
 	// Applying remap rules for physical buttons
 	int i;
@@ -278,6 +303,17 @@ void applyRemap(SceCtrlData *ctrl, int count) {
 			applyRemapRule(PHYS_BUTTONS_NUM + 4, &new_map, stickpos);
 		}
 	}
+	
+	// Applying remap for gyro
+	if (motionstate.angularVelocity.y > 0){
+		applyRemapRuleForGyro(PHYS_BUTTONS_NUM + 16,  &new_map, stickpos, motionstate.angularVelocity.y * gyro_sens[0]);}
+	if (motionstate.angularVelocity.y < 0){
+		applyRemapRuleForGyro(PHYS_BUTTONS_NUM + 17,  &new_map, stickpos, -motionstate.angularVelocity.y * gyro_sens[0]);}
+	if (motionstate.angularVelocity.x > 0){
+		applyRemapRuleForGyro(PHYS_BUTTONS_NUM + 18,  &new_map, stickpos, motionstate.angularVelocity.x * gyro_sens[0]);}
+	if (motionstate.angularVelocity.x < 0){
+		applyRemapRuleForGyro(PHYS_BUTTONS_NUM + 19,  &new_map, stickpos, -motionstate.angularVelocity.x * gyro_sens[0]);}
+	
 	
 	// Applying remap rules for left analog
 	if (ctrl->lx < 127 - analogs_deadzone[0]) { // Left
@@ -366,11 +402,17 @@ void saveConfig(void) {
 	fd = sceIoOpen("ux0:/data/remaPSV/analogs.bin", SCE_O_WRONLY | SCE_O_CREAT | SCE_O_TRUNC, 0777);
 	sceIoWrite(fd, analogs_deadzone, 4);
 	sceIoClose(fd);
+	
+	// Opening analog config file and saving the config
+	fd = sceIoOpen("ux0:/data/remaPSV/gyro.bin", SCE_O_WRONLY | SCE_O_CREAT | SCE_O_TRUNC, 0777);
+	sceIoWrite(fd, gyro_sens, 2);
+	sceIoClose(fd);
 }
 
 void loadConfig(void) {
 	resetRemaps();
 	resetAnalogs();
+	resetGyro();
 	
 	sceIoMkdir("ux0:/data/remaPSV", 0777); // Just in case the folder doesn't exist
 	
@@ -401,6 +443,13 @@ void loadConfig(void) {
 		sceIoRead(fd, analogs_deadzone, 4);
 		sceIoClose(fd);
 	}
+	
+	// Loading gyro config file
+	fd = sceIoOpen("ux0:/data/remaPSV/gyro.bin", SCE_O_RDONLY, 0777);
+	if (fd >= 0){
+		sceIoRead(fd, gyro_sens, 2);
+		sceIoClose(fd);
+	}
 }
 
 // Input Handler for the Config Menu
@@ -417,6 +466,9 @@ void configInputHandler(SceCtrlData *ctrl, int count) {
 		case ANALOG_MENU:
 			menu_entries = 4;
 			break;
+		case GYRO_MENU:
+			menu_entries = 2;
+			break;
 		case FUNCS_LIST:
 			menu_entries = HOOKS_NUM - 1;
 			break;
@@ -432,6 +484,7 @@ void configInputHandler(SceCtrlData *ctrl, int count) {
 		}else if ((ctrl->buttons & SCE_CTRL_RIGHT) && (!(old_buttons & SCE_CTRL_RIGHT))) {
 			if (menu_i == REMAP_MENU) btn_mask[cfg_i] = (btn_mask[cfg_i] + 1) % TARGET_REMAPS;
 			else if (menu_i == ANALOG_MENU) analogs_deadzone[cfg_i] = (analogs_deadzone[cfg_i] + 1) % 128;
+		else if (menu_i == GYRO_MENU) {if (gyro_sens[cfg_i] < 200) gyro_sens[cfg_i]++; else gyro_sens[cfg_i] = 0;}
 		}else if ((ctrl->buttons & SCE_CTRL_LEFT) && (!(old_buttons & SCE_CTRL_LEFT))) {
 			if (menu_i == REMAP_MENU) {
 				if (btn_mask[cfg_i] == 0) btn_mask[cfg_i] = TARGET_REMAPS - 1;
@@ -439,13 +492,17 @@ void configInputHandler(SceCtrlData *ctrl, int count) {
 			} else if (menu_i == ANALOG_MENU) {
 				if (analogs_deadzone[cfg_i] == 0) analogs_deadzone[cfg_i] = 127;
 				else analogs_deadzone[cfg_i]--;
+			} else if (menu_i == GYRO_MENU) {
+				if (gyro_sens[cfg_i] > 0) gyro_sens[cfg_i]--; else gyro_sens[cfg_i] = 200;
 			}
 		}else if ((ctrl->buttons & SCE_CTRL_SQUARE) && (!(old_buttons & SCE_CTRL_SQUARE))) {
 			if (menu_i == REMAP_MENU) btn_mask[cfg_i] = PHYS_BUTTONS_NUM;
 			else if (menu_i == ANALOG_MENU) analogs_deadzone[cfg_i] = ANALOGS_DEADZONE_DEF;
+			else if (menu_i == GYRO_MENU) gyro_sens[cfg_i] = GYRO_SENS_DEF;
 		}else if ((ctrl->buttons & SCE_CTRL_START) && (!(old_buttons & SCE_CTRL_START))) {
 			if (menu_i == REMAP_MENU) resetRemaps();
 			else if (menu_i == ANALOG_MENU) resetAnalogs();
+			else if (menu_i == GYRO_MENU) resetGyro();
 		}else if ((ctrl->buttons & SCE_CTRL_CROSS) && (!(old_buttons & SCE_CTRL_CROSS))) {
 			if (menu_i == MAIN_MENU) {
 				if (cfg_i == menu_entries-1) {
@@ -769,6 +826,10 @@ int module_start(SceSize argc, const void *args) {
 	// Enabling analogs sampling
 	sceCtrlSetSamplingMode(SCE_CTRL_MODE_ANALOG_WIDE);
 	sceCtrlSetSamplingModeExt(SCE_CTRL_MODE_ANALOG_WIDE);
+	
+	// Enabling gyro sampling
+	sceMotionReset();
+	sceMotionStartSampling();
 	
 	// Hooking functions
 	hookFunction(0xA9C3CED6, sceCtrlPeekBufferPositive_patched);
