@@ -168,12 +168,14 @@ void drawConfigMenu() {
 		drawString(5, 520, "[<] or [>]: change    [[]]: reset   [start]: reset all   [select] or [O]: back");
 		break;
 	case ANALOG_MENU:
+		setTextColor(COLOR_DEFAULT);
 		drawString(5, 80, "Left Analog:");
-		drawString(5, 150, "Right Analog:");
 		setTextColor((0 == cfg_i) ? COLOR_CURSOR : ((analogs_deadzone[0] != ANALOGS_DEADZONE_DEF) ? COLOR_ACTIVE : COLOR_DEFAULT));
 		drawStringF(5, 100, "X Axis Deadzone: %hhu", analogs_deadzone[0]);
 		setTextColor((1 == cfg_i) ? COLOR_CURSOR : ((analogs_deadzone[1] != ANALOGS_DEADZONE_DEF) ? COLOR_ACTIVE : COLOR_DEFAULT));
 		drawStringF(5, 120, "Y Axis Deadzone: %hhu", analogs_deadzone[1]);
+		setTextColor(COLOR_DEFAULT);
+		drawString(5, 150, "Right Analog:");
 		setTextColor((2 == cfg_i) ? COLOR_CURSOR : ((analogs_deadzone[2] != ANALOGS_DEADZONE_DEF) ? COLOR_ACTIVE : COLOR_DEFAULT));
 		drawStringF(5, 170, "X Axis Deadzone: %hhu", analogs_deadzone[2]);
 		setTextColor((3 == cfg_i) ? COLOR_CURSOR : ((analogs_deadzone[3] != ANALOGS_DEADZONE_DEF) ? COLOR_ACTIVE : COLOR_DEFAULT));
@@ -183,7 +185,7 @@ void drawConfigMenu() {
 		break;
 	case FUNCS_LIST:
 		for (i = max(0, cfg_i - (screen_entries - 3)); i < HOOKS_NUM - 1; i++) {
-			setTextColor((i == cfg_i) ? COLOR_CURSOR : COLOR_DEFAULT);
+			setTextColor((i == cfg_i) ? (used_funcs[i] ? COLOR_ACTIVE : COLOR_DEFAULT));
 			drawStringF(5, y, "%s : %s", str_funcs[i], used_funcs[i] ? "Yes" : "No");
 			y += 20;
 			if (y + 40 > screen_h) break;
