@@ -219,6 +219,16 @@ void applyRemapRule(uint8_t btn_idx, uint32_t* map, uint8_t* stkpos) {
 	}
 }
 
+void applyRemapRuleForAnalog(uint8_t btn_idx, uint32_t* map, uint8_t* stkpos, uint8_t stickposval) {
+	if (btn_mask[btn_idx] > PHYS_BUTTONS_NUM + 1) { // Remap to non physical
+		if (btn_mask[btn_idx] < PHYS_BUTTONS_NUM + 10) { // Remap analog stick direction digitally
+			stkpos[btn_mask[btn_idx] - (PHYS_BUTTONS_NUM + 2)] = 127 - stickposval;
+		}
+	} else {
+		applyRemapRule(btn_idx, map, stkpos);
+	}
+}
+
 void applyRemap(SceCtrlData *ctrl, int count) {
 	
 	// Checking for menu triggering
@@ -271,65 +281,68 @@ void applyRemap(SceCtrlData *ctrl, int count) {
 	
 	// Applying remap rules for left analog
 	if (ctrl->lx < 127 - analogs_deadzone[0]) { // Left
-		applyRemapRule(PHYS_BUTTONS_NUM + 8, &new_map, stickpos);
+		applyRemapRuleForAnalog(PHYS_BUTTONS_NUM + 8, &new_map, stickpos, ctrl->lx);
 	} else if (ctrl->lx > 127 + analogs_deadzone[0]) { // Right
-		applyRemapRule(PHYS_BUTTONS_NUM + 9, &new_map, stickpos);
+		applyRemapRuleForAnalog(PHYS_BUTTONS_NUM + 9, &new_map, stickpos, 255 - ctrl->lx);
 	}
 	if (ctrl->ly < 127 - analogs_deadzone[1]) { // Up
-		applyRemapRule(PHYS_BUTTONS_NUM + 10, &new_map, stickpos);
+		applyRemapRuleForAnalog(PHYS_BUTTONS_NUM + 10, &new_map, stickpos, ctrl->ly);
 	} else if (ctrl->ly > 127 + analogs_deadzone[1]) { // Down
-		applyRemapRule(PHYS_BUTTONS_NUM + 11, &new_map, stickpos);
+		applyRemapRuleForAnalog(PHYS_BUTTONS_NUM + 11, &new_map, stickpos, 255 - ctrl->ly);
 	}
 	
 	// Applying remap rules for right analog
 	if (ctrl->rx < 127 - analogs_deadzone[2]) { // Left
-		applyRemapRule(PHYS_BUTTONS_NUM + 12, &new_map, stickpos);
+		applyRemapRuleForAnalog(PHYS_BUTTONS_NUM + 12, &new_map, stickpos, ctrl->rx);
 	} else if (ctrl->rx > 127 + analogs_deadzone[2]) { // Right
-		applyRemapRule(PHYS_BUTTONS_NUM + 13, &new_map, stickpos);
+		applyRemapRuleForAnalog(PHYS_BUTTONS_NUM + 13, &new_map, stickpos, 255 - ctrl->rx);
 	}
 	if (ctrl->ry < 127 - analogs_deadzone[3]) { // Up
-		applyRemapRule(PHYS_BUTTONS_NUM + 14, &new_map, stickpos);
+		applyRemapRuleForAnalog(PHYS_BUTTONS_NUM + 14, &new_map, stickpos, ctrl->ry);
 	} else if (ctrl->ry > 127 + analogs_deadzone[3]) { // Down
-		applyRemapRule(PHYS_BUTTONS_NUM + 15, &new_map, stickpos);
+		applyRemapRuleForAnalog(PHYS_BUTTONS_NUM + 15, &new_map, stickpos, 255 - ctrl->ry);
 	}
 	
 	// Nulling analogs if they're remapped
-	if ((btn_mask[PHYS_BUTTONS_NUM+8] != PHYS_BUTTONS_NUM) ||
-		(btn_mask[PHYS_BUTTONS_NUM+9] != PHYS_BUTTONS_NUM) ||
-		(btn_mask[PHYS_BUTTONS_NUM+10] != PHYS_BUTTONS_NUM) ||
-		(btn_mask[PHYS_BUTTONS_NUM+11] != PHYS_BUTTONS_NUM)) {
-		for (i = 0; i < count; i++) {
-			ctrl[i].lx = ctrl[i].ly = 127;
-		}
-	}
-	if ((btn_mask[PHYS_BUTTONS_NUM+12] != PHYS_BUTTONS_NUM) ||
-		(btn_mask[PHYS_BUTTONS_NUM+13] != PHYS_BUTTONS_NUM) ||
-		(btn_mask[PHYS_BUTTONS_NUM+14] != PHYS_BUTTONS_NUM) ||
-		(btn_mask[PHYS_BUTTONS_NUM+15] != PHYS_BUTTONS_NUM)) {
-		for (i = 0; i < count; i++) {
-			ctrl[i].rx = ctrl[i].ry = 127;
-		}
+	for (i = 0; i < count; i++) {				
+		if ((ctrl[i].lx < 127 && btn_mask[PHYS_BUTTONS_NUM+8] != PHYS_BUTTONS_NUM) ||
+			(ctrl[i].lx > 127 && btn_mask[PHYS_BUTTONS_NUM+9] != PHYS_BUTTONS_NUM)){
+			ctrl[i].lx = 127;}
+		if ((ctrl[i].ly < 127 && btn_mask[PHYS_BUTTONS_NUM+10] != PHYS_BUTTONS_NUM) ||
+			(ctrl[i].ly > 127 && btn_mask[PHYS_BUTTONS_NUM+11] != PHYS_BUTTONS_NUM)){
+			ctrl[i].ly = 127;}
+		if ((ctrl[i].rx < 127 && btn_mask[PHYS_BUTTONS_NUM+12] != PHYS_BUTTONS_NUM) ||
+			(ctrl[i].rx > 127 && btn_mask[PHYS_BUTTONS_NUM+13] != PHYS_BUTTONS_NUM)){
+			ctrl[i].rx = 127;}
+		if ((ctrl[i].ry < 127 && btn_mask[PHYS_BUTTONS_NUM+14] != PHYS_BUTTONS_NUM) ||
+			(ctrl[i].ry > 127 && btn_mask[PHYS_BUTTONS_NUM+15] != PHYS_BUTTONS_NUM)){
+			ctrl[i].ry = 127;}			
 	}
 	
-	uint8_t smNused = checkStkMapNotUsed(stickpos, 8);
-	if (smNused == 0) { // Remove minimal drift if digital remap for stick directions is used
-		for (i = 0; i < count; i++)
-		{
-			if (ctrl[i].lx < 148 && ctrl[i].lx > 108) { ctrl[i].lx = 127; }
-			if (ctrl[i].ly < 148 && ctrl[i].ly > 108) { ctrl[i].ly = 127; }
-			if (ctrl[i].rx < 148 && ctrl[i].rx > 108) { ctrl[i].rx = 127; }
-			if (ctrl[i].ry < 148 && ctrl[i].ry > 108) { ctrl[i].ry = 127; }
-		}
-	}
+	// Remove minimal drift if digital remap for stick directions is used
+	/*for (i = 0; i < count; i++)
+	{
+		if ((stickpos[0] || stickpos[1]) && ctrl[i].lx - 127 < 20) { 
+			ctrl[i].lx = 127; }
+		if ((stickpos[2] || stickpos[3]) && ctrl[i].ly - 127 < 20) { 
+			ctrl[i].ly = 127; }
+		if ((stickpos[4] || stickpos[5]) && ctrl[i].rx - 127 < 20) { 
+			ctrl[i].rx = 127; }
+		if ((stickpos[6] || stickpos[7]) && ctrl[i].ry - 127 < 20) { 
+			ctrl[i].ry = 127; }
+	}*/
 
+	// Apply digital remap for stick directions if used
 	for (i = 0; i < count; i++) {
 		ctrl[i].buttons = new_map;
-		if (smNused == 0) { // Apply digital remap for stick directions if used
-			ctrl[i].lx = clamp((ctrl[i].lx - stickpos[0]) + stickpos[1], 0, 255);
-			ctrl[i].ly = clamp((ctrl[i].ly - stickpos[2]) + stickpos[3], 0, 255);
-			ctrl[i].rx = clamp((ctrl[i].rx - stickpos[4]) + stickpos[5], 0, 255);
-			ctrl[i].ry = clamp((ctrl[i].ry - stickpos[6]) + stickpos[7], 0, 255);
-		}
+		if (stickpos[0] || stickpos[1]) {
+			ctrl[i].lx = clamp(ctrl[i].lx - stickpos[0] + stickpos[1], 0, 255);}
+		if (stickpos[2] || stickpos[3]) {
+			ctrl[i].ly = clamp(ctrl[i].ly - stickpos[2] + stickpos[3], 0, 255);}
+		if (stickpos[4] || stickpos[5]) {
+			ctrl[i].rx = clamp(ctrl[i].rx - stickpos[4] + stickpos[5], 0, 255);}
+		if (stickpos[6] || stickpos[7]) {
+			ctrl[i].ry = clamp(ctrl[i].ry - stickpos[6] + stickpos[7], 0, 255);}
 	}
 }
 
