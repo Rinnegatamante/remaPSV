@@ -9,15 +9,15 @@
 #define TARGET_REMAPS     26 // Supported target remaps num
 #define BUTTONS_NUM       32 // Supported buttons num
 #define MENU_MODES        4  // Menu modes num
+#define COLOR_DEFAULT     0x00FFFFFF
+#define COLOR_HEADER      0x00FF00FF
+#define COLOR_CURSOR      0x0000FF00
+#define COLOR_ACTIVE      0x000000FF
+#define ANALOGS_DEADZONE_DEF      30
 
 #ifndef max
 # define max(a,b) (((a)>(b))?(a):(b))
 #endif
-
-static uint32_t color_default = 0x00FFFFFF;
-static uint32_t color_header = 0x00FF00FF;
-static uint32_t color_cursor = 0x0000FF00;
-static uint32_t color_active = 0x000000FF;
 
 enum{
 	MAIN_MENU = 0,
@@ -41,7 +41,6 @@ static uint8_t internal_touch_call = 0;
 static uint8_t internal_ext_call = 0;
 static uint8_t new_frame = 1;
 static SceCtrlData pstv_fakepad;
-static uint8_t const analogs_deadzone_def = 30;
 static uint8_t analogs_deadzone[4];
 static uint8_t btn_mask[BUTTONS_NUM];
 static uint8_t used_funcs[HOOKS_NUM-1];
@@ -135,13 +134,13 @@ void resetRemaps(){
 
 void resetAnalogs(){
 	for (int i = 0; i < 4; i++) {
-		analogs_deadzone[i] = analogs_deadzone_def;
+		analogs_deadzone[i] = ANALOGS_DEADZONE_DEF;
 	}
 }
 
 // Config Menu Renderer
 void drawConfigMenu() {
-	setTextColor(color_header);
+	setTextColor(COLOR_HEADER);
 	drawString(5, 10, "Thanks to Tain Sueiras, nobodywasishere and RaveHeart");
 	drawString(5, 30, "for their awesome support on Patreon");
 	drawStringF(5, 50, "remaPSV v.1.2 - %s", str_menus[menu_i]);
@@ -150,47 +149,46 @@ void drawConfigMenu() {
 	switch (menu_i){
 	case MAIN_MENU:
 		for (i = max(0, cfg_i - (screen_entries - 3)); i < sizeof(str_main_menu)/sizeof(char*); i++) {
-			setTextColor((i == cfg_i) ? color_cursor : color_default);
+			setTextColor((i == cfg_i) ? COLOR_CURSOR : COLOR_DEFAULT);
 			drawStringF(5, y, "%s", str_main_menu[i]);
 			y += 20;
 			if (y + 40 > screen_h) break;
 		}
-		setTextColor(color_header);
+		setTextColor(COLOR_HEADER);
 		drawString(5, 520, "[X]: select   [select] or [O]: save and close");
 		break;
 	case REMAP_MENU:
 		for (i = max(0, cfg_i - (screen_entries - 3)); i < BUTTONS_NUM; i++) {
-			setTextColor((i == cfg_i) ? color_cursor : color_default);
-			setTextColor((i == cfg_i) ? color_cursor : ((btn_mask[i] != PHYS_BUTTONS_NUM) ? color_active : color_default));
+			setTextColor((i == cfg_i) ? COLOR_CURSOR : ((btn_mask[i] != PHYS_BUTTONS_NUM) ? COLOR_ACTIVE : COLOR_DEFAULT));
 			drawStringF(5, y, "%s -> %s", str_btns[i], target_btns[btn_mask[i]]);
 			y += 20;
 			if (y + 40 > screen_h) break;
 		}
-		setTextColor(color_header);
+		setTextColor(COLOR_HEADER);
 		drawString(5, 520, "[<] or [>]: change    [[]]: reset   [start]: reset all   [select] or [O]: back");
 		break;
 	case ANALOG_MENU:
 		drawString(5, 80, "Left Analog:");
 		drawString(5, 150, "Right Analog:");
-		setTextColor((0 == cfg_i) ? color_cursor : ((analogs_deadzone[0] != analogs_deadzone_def) ? color_active : color_default));
+		setTextColor((0 == cfg_i) ? COLOR_CURSOR : ((analogs_deadzone[0] != ANALOGS_DEADZONE_DEF) ? COLOR_ACTIVE : COLOR_DEFAULT));
 		drawStringF(5, 100, "X Axis Deadzone: %hhu", analogs_deadzone[0]);
-		setTextColor((1 == cfg_i) ? color_cursor : ((analogs_deadzone[1] != analogs_deadzone_def) ? color_active : color_default));
+		setTextColor((1 == cfg_i) ? COLOR_CURSOR : ((analogs_deadzone[1] != ANALOGS_DEADZONE_DEF) ? COLOR_ACTIVE : COLOR_DEFAULT));
 		drawStringF(5, 120, "Y Axis Deadzone: %hhu", analogs_deadzone[1]);
-		setTextColor((2 == cfg_i) ? color_cursor : ((analogs_deadzone[2] != analogs_deadzone_def) ? color_active : color_default));
+		setTextColor((2 == cfg_i) ? COLOR_CURSOR : ((analogs_deadzone[2] != ANALOGS_DEADZONE_DEF) ? COLOR_ACTIVE : COLOR_DEFAULT));
 		drawStringF(5, 170, "X Axis Deadzone: %hhu", analogs_deadzone[2]);
-		setTextColor((3 == cfg_i) ? color_cursor : ((analogs_deadzone[3] != analogs_deadzone_def) ? color_active : color_default));
+		setTextColor((3 == cfg_i) ? COLOR_CURSOR : ((analogs_deadzone[3] != ANALOGS_DEADZONE_DEF) ? COLOR_ACTIVE : COLOR_DEFAULT));
 		drawStringF(5, 190, "Y Axis Deadzone: %hhu", analogs_deadzone[3]);
-		setTextColor(color_header);
+		setTextColor(COLOR_HEADER);
 		drawString(5, 520, "[<] or [>]: change    [[]]: reset   [start]: reset all    [select] or [O]: back");
 		break;
 	case FUNCS_LIST:
 		for (i = max(0, cfg_i - (screen_entries - 3)); i < HOOKS_NUM - 1; i++) {
-			setTextColor((i == cfg_i) ? color_cursor : color_default);
+			setTextColor((i == cfg_i) ? COLOR_CURSOR : COLOR_DEFAULT);
 			drawStringF(5, y, "%s : %s", str_funcs[i], used_funcs[i] ? "Yes" : "No");
 			y += 20;
 			if (y + 40 > screen_h) break;
 		}
-		setTextColor(color_header);
+		setTextColor(COLOR_HEADER);
 		drawString(5, 520, "[select] or [O]: back");
 		break;
 	default:
@@ -442,7 +440,7 @@ void configInputHandler(SceCtrlData *ctrl, int count) {
 			}
 		}else if ((ctrl->buttons & SCE_CTRL_SQUARE) && (!(old_buttons & SCE_CTRL_SQUARE))) {
 			if (menu_i == REMAP_MENU) btn_mask[cfg_i] = PHYS_BUTTONS_NUM;
-			else if (menu_i == ANALOG_MENU) analogs_deadzone[cfg_i] = analogs_deadzone_def;
+			else if (menu_i == ANALOG_MENU) analogs_deadzone[cfg_i] = ANALOGS_DEADZONE_DEF;
 		}else if ((ctrl->buttons & SCE_CTRL_START) && (!(old_buttons & SCE_CTRL_START))) {
 			if (menu_i == REMAP_MENU) resetRemaps();
 			else if (menu_i == ANALOG_MENU) resetAnalogs();
