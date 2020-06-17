@@ -161,7 +161,7 @@ void drawConfigMenu() {
 			if (y + 40 > screen_h) break;
 		}
 		setTextColor(COLOR_HEADER);
-		drawString(5, 520, "[X]: select   [select] or [O]: save and close");
+		drawString(5, 520, "(X): select   (select) or (O): save and close");
 		break;
 	case REMAP_MENU:
 		for (i = max(0, cfg_i - (screen_entries - 3)); i < BUTTONS_NUM; i++) {
@@ -171,7 +171,7 @@ void drawConfigMenu() {
 			if (y + 40 > screen_h) break;
 		}
 		setTextColor(COLOR_HEADER);
-		drawString(5, 520, "[<] or [>]: change    [[]]: reset   [start]: reset all   [select] or [O]: back");
+		drawString(5, 520, "(<) or (>): change    ([]): reset   (start): reset all   (select) or (O): back");
 		break;
 	case ANALOG_MENU:
 		setTextColor(COLOR_DEFAULT);
@@ -187,7 +187,7 @@ void drawConfigMenu() {
 		setTextColor((3 == cfg_i) ? COLOR_CURSOR : ((analogs_deadzone[3] != ANALOGS_DEADZONE_DEF) ? COLOR_ACTIVE : COLOR_DEFAULT));
 		drawStringF(5, 190, "Y Axis Deadzone: %hhu", analogs_deadzone[3]);
 		setTextColor(COLOR_HEADER);
-		drawString(5, 520, "[<] or [>]: change    [[]]: reset   [start]: reset all    [select] or [O]: back");
+		drawString(5, 520, "(<) or (>): change    ([]): reset   (start): reset all    (select) or (O): back");
 		break;
 	case GYRO_MENU:
 		setTextColor((0 == cfg_i) ? COLOR_CURSOR : ((gyro_options[0] != GYRO_SENS_DEF) ? COLOR_ACTIVE : COLOR_DEFAULT));
@@ -201,7 +201,7 @@ void drawConfigMenu() {
 		setTextColor((3 == cfg_i) ? COLOR_CURSOR : ((gyro_options[3] != GYRO_DEADZONE_DEF) ? COLOR_ACTIVE : COLOR_DEFAULT));
 		drawStringF(5, 170, "Y Axis Deadzone: %hhu", gyro_options[3]);
 		setTextColor(COLOR_HEADER);
-		drawString(5, 520, "[<] or [>]: change    [[]]: reset   [start]: reset all    [select] or [O]: back");
+		drawString(5, 520, "(<) or (>): change    ([]): reset   (start): reset all    (select) or (O): back");
 		break;
 	case FUNCS_LIST:
 		for (i = max(0, cfg_i - (screen_entries - 3)); i < HOOKS_NUM - 1; i++) {
@@ -211,7 +211,7 @@ void drawConfigMenu() {
 			if (y + 40 > screen_h) break;
 		}
 		setTextColor(COLOR_HEADER);
-		drawString(5, 520, "[select] or [O]: back");
+		drawString(5, 520, "(select) or (O): back");
 		break;
 	default:
 		break;
